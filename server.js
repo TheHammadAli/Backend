@@ -5,6 +5,7 @@ const connectDB = require("./Config/db");
 const http = require("http");
 const { setupSocket } = require("./Socket/socketServer");
 
+// Routes
 const authRoutes = require("./Routes/authPatient");
 const testimonialRoutes = require("./Routes/testimonialRoutes");
 const doctorRoutes = require("./Routes/doctorRoutes");
@@ -22,19 +23,21 @@ const prescriptionRoutes = require("./Routes/prescriptionRoutes");
 const app = express();
 const server = http.createServer(app);
 
+// Middleware
 app.use(express.json());
 app.use(
   cors({
     origin: function (origin, callback) {
       const allowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
-  "https://medi-predict.vercel.app"
-];
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "https://medi-predict.vercel.app"
+      ];
 
-      // allow requests with no origin like mobile apps or curl
+      // Allow requests with no origin (like mobile apps, curl, or Postman)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1) {
+
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -44,6 +47,10 @@ app.use(
   })
 );
 
+// Root route (fixes "Cannot GET /")
+app.get("/", (req, res) => {
+  res.send("✅ MediPredict Backend is running.");
+});
 
 // Register API routes
 app.use("/api/auth", authRoutes);
@@ -70,12 +77,10 @@ const startServer = async () => {
   try {
     console.log(`[Server] Starting server initialization...`);
     await connectDB();
-    console.log(
-      `[Server] Database connection established, setting up Socket.IO`
-    );
+    console.log(`[Server] Database connection established, setting up Socket.IO`);
     setupSocket(server);
 
-    const PORT = process.env.PORT;
+    const PORT = process.env.PORT || 5000;
     server.listen(PORT, () => {
       console.log(`✅ [Server] Running with Socket.IO on port ${PORT}`);
       isServerRunning = true;
