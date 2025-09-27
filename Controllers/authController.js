@@ -42,6 +42,7 @@ const register = async (req, res) => {
     // ✅ Ensure only one OTP per email
     await OTP.deleteMany({ email });
 
+    // Save OTP to database first (before attempting to send email)
     await OTP.create({
       email,
       otp,
@@ -49,8 +50,18 @@ const register = async (req, res) => {
       tempUser,
     });
 
-    await sendOTPEmail(email, otp);
-    res.status(200).json({ msg: "OTP sent to email. Please verify." });
+    // Attempt to send email (don't fail registration if email fails)
+    try {
+      await sendOTPEmail(email, otp);
+      res.status(200).json({ msg: "OTP created and sent to email. Please verify." });
+    } catch (emailError) {
+      console.error("❌ Email sending failed, but OTP saved:", emailError);
+      // Still return success since OTP is saved in DB
+      res.status(200).json({
+        msg: "OTP created successfully. Please check your email (may be delayed).",
+        note: "Email sending failed but registration can proceed"
+      });
+    }
   } catch (error) {
     console.error("❌ Error in Register API:", error);
     res.status(500).json({ msg: "Server error" });
@@ -148,12 +159,18 @@ const resendOTP = async (req, res) => {
       tempUser: existingOTP.tempUser,
     });
 
-    const emailSent = await sendOTPEmail(email, otp);
-    if (!emailSent) {
-      return res.status(500).json({ msg: "Failed to send OTP" });
+    // Attempt to send email (don't fail if email fails)
+    try {
+      await sendOTPEmail(email, otp);
+      res.status(200).json({ msg: "OTP resent to your email." });
+    } catch (emailError) {
+      console.error("❌ Email resend failed, but OTP updated:", emailError);
+      // Still return success since OTP is updated in DB
+      res.status(200).json({
+        msg: "OTP updated successfully. Please check your email (may be delayed).",
+        note: "Email sending failed but you can use the new OTP"
+      });
     }
-
-    res.status(200).json({ msg: "OTP resent to your email." });
   } catch (err) {
     console.error("❌ Resend OTP Error:", err);
     res.status(500).json({ msg: "Server error" });
